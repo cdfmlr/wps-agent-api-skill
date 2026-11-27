@@ -1,5 +1,6 @@
 import argparse
 import io
+import json
 import sys
 import tempfile
 import unittest
@@ -12,14 +13,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import wps_docs
 
 
-DOCS = [{"id": "1", "title": "bad", "path": "/bad", "source": "dms"}]
+BAD = {"id": "1", "title": "bad", "path": "/bad", "source": "dms"}
+GOOD = {"id": "2", "title": "good", "path": "/good", "source": "dms"}
 
 
-def run_sync(out, docs=DOCS, fail=False):
+def run_sync(out, docs=(BAD,), fail_titles=("bad",)):
     args = argparse.Namespace(out=out, lang="zh-CN", workers=1)
-    effect = RuntimeError("boom") if fail else "# ok"
-    with mock.patch.object(wps_docs, "flatten", return_value=docs), \
-            mock.patch.object(wps_docs, "doc_markdown", side_effect=effect):
+
+    def fetch(doc, lang):
+        if doc["title"] in fail_titles:
+            raise RuntimeError("boom")
+        return "# ok"
+
+    with mock.patch.object(wps_docs, "flatten", return_value=list(docs)), \
+            mock.patch.object(wps_docs, "doc_markdown", side_effect=fetch):
         with redirect_stderr(io.StringIO()) as err, redirect_stdout(io.StringIO()) as out_io:
             try:
                 wps_docs.cmd_sync(args)
@@ -32,7 +39,7 @@ def run_sync(out, docs=DOCS, fail=False):
 class SyncTest(unittest.TestCase):
     def test_all_failures_write_stderr_and_exit_nonzero(self):
         with tempfile.TemporaryDirectory() as tmp:
-            code, err, out = run_sync(tmp, fail=True)
+            code, err, out = run_sync(tmp)
             self.assertNotEqual(code, 0)
             self.assertIn("FAILED bad: boom", err)
             self.assertIn("synced 0 docs", out)
@@ -40,9 +47,11 @@ class SyncTest(unittest.TestCase):
 
     def test_partial_failure_still_succeeds(self):
         with tempfile.TemporaryDirectory() as tmp:
-            code, _, _ = run_sync(tmp, docs=DOCS * 2)
+            code, err, _ = run_sync(tmp, docs=(BAD, GOOD))
+            index = json.loads((Path(tmp) / "index.json").read_text())
             self.assertEqual(code, 0)
-            self.assertTrue((Path(tmp) / "index.json").exists())
+            self.assertIn("FAILED bad: boom", err)
+            self.assertEqual([item["id"] for item in index], ["2"])
 
 
 if __name__ == "__main__":
