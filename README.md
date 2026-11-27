@@ -73,13 +73,20 @@
 
 ## 快速开始
 
-### 1. 配置 Key
+### 1. 配置 Key（需要用户本人操作）
+
+> 这一步必须由**用户人类本人**完成，Agent 不能代替：先按官方说明创建/获取 Agent API Key，再配置到环境变量。
+
+- 官方接入说明：[WPS账号接入Agent身份认证说明](https://www.kdocs.cn/l/cpSf5NCLgM4i)
+- Key 添加入口：[www.kdocs.cn > 用户头像 > 个人中心 > AI服务 > 我的AI Agent](https://account.wps.cn/usercenter/agent-identity)
+
+获取 Key 后：
 
 ```bash
 export WPS_AGENT_API_KEY='apik:<sk_id>.<secret_key>'
 ```
 
-Key 只从环境变量读取，不会写入文件。
+Key 只从环境变量读取，不会写入文件。不要把 Key 粘贴到对话、Issue 或提交到仓库。
 
 ### 2. 直接使用脚本
 

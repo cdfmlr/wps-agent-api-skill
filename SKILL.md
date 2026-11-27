@@ -12,6 +12,7 @@ Use the bundled standard-library client; no `pip install` is needed.
 ## Prerequisites
 
 - `WPS_AGENT_API_KEY` (or `AGENT_API_KEY`) must be set, format `apik:<sk_id>.<secret_key>`.
+- If the key is missing, stop and ask the user to set it up themselves. Point them to the official guide (https://www.kdocs.cn/l/cpSf5NCLgM4i) and the key page (https://account.wps.cn/usercenter/agent-identity). Never ask them to paste the key into chat.
 - Never print, echo, or write the key into files or the repository. Only check that it exists.
 - Network access to `account.wps.cn`, `openapi.wps.cn`, and `api.wps.cn`.
 
