@@ -1,0 +1,5 @@
+interface:
+  display_name: "WPS Agent API"
+  short_description: "Create and edit WPS Office files via API"
+  brand_color: "#2B6CB0"
+  default_prompt: "Use $wps-agent-api-skill to create a formatted DOCX with a header, footer, and table."

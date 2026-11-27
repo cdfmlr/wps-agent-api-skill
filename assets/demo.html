@@ -1,0 +1,22 @@
+<h1 style="color:#1a365d;">WPS 开放平台 API 实测</h1>
+<p style="font-size:11pt;">这份文档完全由 WPS 开放平台 API 生成：创建文件、写入 HTML、设置页眉页脚、添加批注，再下载为 DOCX。</p>
+<p><b>结论：</b>对于复杂 Office 文档，这套 API 比手写 python-docx 更接近 Word 的对象模型。</p>
+<h2 style="color:#2b6cb0;">能力对比</h2>
+<table style="width:100%;border-collapse:collapse;font-size:10pt;">
+<thead><tr style="background:#2b6cb0;color:#ffffff;">
+<th style="border:1px solid #999;padding:6px;width:24%;">能力</th>
+<th style="border:1px solid #999;padding:6px;width:30%;">python-docx</th>
+<th style="border:1px solid #999;padding:6px;">WPS API</th>
+</tr></thead>
+<tbody>
+<tr><td style="border:1px solid #999;padding:6px;">段落 / 样式</td><td style="border:1px solid #999;padding:6px;">要拼 XML，样式兼容性一般</td><td style="border:1px solid #999;padding:6px;">insert 直接写，可带字体和段落格式</td></tr>
+<tr><td style="border:1px solid #999;padding:6px;">复杂表格</td><td style="border:1px solid #999;padding:6px;">需手写 table/tr/tc</td><td style="border:1px solid #999;padding:6px;">HTML 或 TABLE_FULL 一次生成</td></tr>
+<tr><td style="border:1px solid #999;padding:6px;">页眉页脚 / 批注 / 域</td><td style="border:1px solid #999;padding:6px;">支持有限或需要 hack</td><td style="border:1px solid #999;padding:6px;">原生 query/update/insert 接口</td></tr>
+</tbody></table>
+<h2 style="color:#2b6cb0;">适用场景</h2>
+<ul>
+<li>需要保留复杂版式的 DOCX 自动生成</li>
+<li>批量替换、批注、修订、目录、页码</li>
+<li>PPT 形状/图表/动画、Excel/多维表格读写</li>
+</ul>
+<p style="color:#666;font-size:9pt;">生成时间：2026-11-27 · 通过 WPS Agent API</p>
