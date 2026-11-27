@@ -203,7 +203,8 @@ Slides 实际走 `api.wps.cn`（不是 `openapi.wps.cn`）。调用形状/文本
 │   ├── wps_api.py          # 零依赖 WPS API 客户端
 │   └── wps_docs.py         # 官方文档 JSON API 查询器
 ├── tests/
-│   └── test_client.py      # 分页与错误处理单元测试
+│   ├── test_client.py      # 分页与错误处理单元测试
+│   └── test_docs.py        # 文档索引同步测试
 ├── references/
 │   ├── endpoints.md        # 接口索引（Writer/Slides/File/AirPage...）
 │   ├── gotchas.md          # Host、枚举、导出延迟等坑
