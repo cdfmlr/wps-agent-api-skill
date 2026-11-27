@@ -1,6 +1,12 @@
+import io
+import json
 import sys
+import tempfile
+import time
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -8,9 +14,11 @@ from wps_api import WPSAPIError, WPSClient, _is_api_error
 
 
 class FakeClient(WPSClient):
-    def __init__(self, pages):
-        self.pages = pages
+    def __init__(self, pages=None):
+        self.pages = pages or {}
         self.calls = []
+        self._token = "test-token"
+        self._expires_at = time.time() + 3600
 
     def get(self, path, **kwargs):
         params = kwargs.get("params") or {}
@@ -66,6 +74,47 @@ class ListDrivesTest(unittest.TestCase):
         self.assertEqual([item["id"] for item in result["data"]["items"]], ["d1", "d2"])
         self.assertEqual([call[1]["page_size"] for call in client.calls], [1, 1])
         self.assertNotIn("next_page_token", result["data"])
+
+
+class DownloadTest(unittest.TestCase):
+    def setUp(self):
+        self.client = FakeClient({"": {"code": 0, "data": {
+            "url": "https://storage.example/file", "hashes": []}}})
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def http_error(self, code, payload):
+        return urllib.error.HTTPError(
+            "https://storage.example/file", code, "error", None,
+            io.BytesIO(json.dumps(payload).encode()))
+
+    def test_retries_transient_storage_errors(self):
+        responses = [self.http_error(503, {"msg": "busy"}),
+                     io.BytesIO(b"payload"), io.BytesIO(b"payload")]
+        with mock.patch("wps_api.urllib.request.urlopen", side_effect=responses) as opened:
+            path, size = self.client.download("drive", "file", str(Path(self.tmp.name) / "out"),
+                                              settle=0, retries=3, wait=0)
+        self.assertEqual(size, len(b"payload"))
+        self.assertEqual(Path(path).read_bytes(), b"payload")
+        self.assertEqual(opened.call_count, 3)
+
+    def test_non_retryable_storage_error_raises_immediately(self):
+        with mock.patch("wps_api.urllib.request.urlopen",
+                        side_effect=self.http_error(400, {"msg": "permission denied"})) as opened:
+            with self.assertRaises(WPSAPIError) as ctx:
+                self.client.download("drive", "file", str(Path(self.tmp.name) / "out"),
+                                     settle=0, retries=3, wait=0)
+        self.assertIn("permission denied", str(ctx.exception))
+        self.assertEqual(opened.call_count, 1)
+
+    def test_exhausted_storage_retries_raise_last_error(self):
+        err = self.http_error(503, {"msg": "busy"})
+        with mock.patch("wps_api.urllib.request.urlopen", side_effect=[err, self.http_error(503, {"msg": "still busy"})]):
+            with self.assertRaises(WPSAPIError) as ctx:
+                self.client.download("drive", "file", str(Path(self.tmp.name) / "out"),
+                                     settle=0, retries=2, wait=0)
+        self.assertIn("still busy", str(ctx.exception))
+        self.assertTrue(ctx.exception.retryable)
 
 
 class ErrorTest(unittest.TestCase):

@@ -227,6 +227,7 @@ class WPSClient:
         time.sleep(settle)
         last = b""
         info = {}
+        last_error: WPSAPIError | None = None
         for i in range(retries):
             info = self.get(f"/v7/drives/{drive_id}/files/{file_id}/download",
                             params={"with_hash": "true"})
@@ -239,14 +240,29 @@ class WPSClient:
                 with urllib.request.urlopen(req, timeout=120) as resp:
                     data = resp.read()
             except urllib.error.HTTPError as exc:
-                raise WPSAPIError({"msg": "download storage request failed"},
-                                  http_status=exc.code, context="download storage") from None
+                text = exc.read().decode("utf-8", "ignore")
+                try:
+                    payload = json.loads(text)
+                except Exception:
+                    payload = {"msg": text[:500]}
+                last_error = WPSAPIError(payload, http_status=exc.code,
+                                         context="download storage")
+                # Each attempt fetches a fresh URL, so signed-URL and transient
+                # storage failures are worth retrying within the poll budget.
+                if exc.code in (403, 404, 408, 429) or exc.code >= 500:
+                    if i < retries - 1:
+                        time.sleep(wait)
+                    continue
+                raise last_error from None
+            last_error = None
             if data and data == last:
                 break
             last = data
             if i < retries - 1:
                 time.sleep(wait)
         if not last:
+            if last_error is not None:
+                raise last_error
             detail = info.get("msg") or f"code={info.get('code')}"
             raise RuntimeError(f"下载失败：未拿到文件内容（{detail}）")
         for item in (info.get("data") or {}).get("hashes") or []:
