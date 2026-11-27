@@ -213,7 +213,6 @@ class WPSClient:
                          {"properties": ["COMMENT_DATA"], "paragraph_index": paragraph_index,
                           "text": text}, host=DOCS_API)
 
-
     # ---------- Slides / PPTX ----------
     # In practice Slides live on api.wps.cn. openapi.wps.cn rejects /v7/slides
     # with 401 "unable to parse claims", despite the official docs' host.
@@ -299,6 +298,7 @@ class WPSClient:
                          {"target": {"slide_id": slide_id, "shape_id": shape_id},
                           "properties": ["GEOMETRY"], "left": left, "top": top,
                           "width": width, "height": height}, host=DOCS_API)
+
 
 # ---------- helpers ----------
 def extract_link_id(value: str) -> str:

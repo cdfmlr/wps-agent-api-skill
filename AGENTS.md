@@ -9,6 +9,8 @@
 - `assets/demo.html` — sample HTML for `ranges/htmls/insert`.
 - `docs/evaluation-2026-11-27.md` — live-test findings and limits.
 - `agents/openai.yaml` — skill UI metadata.
+- `SECURITY.md` — vulnerability reporting and key-handling policy.
+- `.github/workflows/ci.yml` — syntax and CLI smoke checks on Python 3.10/3.12.
 
 No `src/` or automated API tests. CI only compiles scripts and checks CLI help.
 
