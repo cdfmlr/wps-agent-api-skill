@@ -9,7 +9,7 @@
 - `assets/demo.html` — sample HTML for `ranges/htmls/insert`.
 - `docs/evaluation-2026-11-27.md` — live-test findings and limits.
 - `agents/openai.yaml` — skill UI metadata.
-- `tests/test_client.py` — unit tests for pagination and error handling.
+- `tests/` — unittest suites for client pagination/errors and docs sync.
 - `SECURITY.md` — vulnerability reporting and key-handling policy.
 - `.github/workflows/ci.yml` — syntax, unit tests, and CLI checks on Python 3.10/3.12.
 
