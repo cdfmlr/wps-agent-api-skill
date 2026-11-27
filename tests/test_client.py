@@ -52,6 +52,22 @@ class ListFilesTest(unittest.TestCase):
             FakeClient(pages).list_files("drive")
 
 
+class ListDrivesTest(unittest.TestCase):
+    def test_follows_next_page_token(self):
+        pages = {
+            "": {"code": 0, "data": {"items": [{"id": "d1"}],
+                                     "next_page_token": "t1"}},
+            "t1": {"code": 0, "data": {"items": [{"id": "d2"}],
+                                       "next_page_token": ""}},
+        }
+        client = FakeClient(pages)
+        result = client.list_drives(page_size=1)
+
+        self.assertEqual([item["id"] for item in result["data"]["items"]], ["d1", "d2"])
+        self.assertEqual([call[1]["page_size"] for call in client.calls], [1, 1])
+        self.assertNotIn("next_page_token", result["data"])
+
+
 class ErrorTest(unittest.TestCase):
     def test_error_detection(self):
         self.assertFalse(_is_api_error({"code": 0, "msg": "ok"}))

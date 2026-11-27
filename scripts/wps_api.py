@@ -162,22 +162,21 @@ class WPSClient:
         return self.request("POST", path, body=body or {}, **kw)
 
     # ---------- drives / files ----------
-    def list_drives(self):
-        return self.get("/v7/drives", params={"allotee_type": "user", "page_size": 100})
-
-    def list_files(self, drive_id: str, parent_id: str = "0", page_size: int = 100):
-        """列出目录下全部文件；自动跟随 next_page_token。"""
+    def _paged_items(self, path: str, *, params=None, page_size: int = 100,
+                     context: str | None = None):
+        """Fetch every page of a list endpoint and merge `data.items`."""
         page_size = max(1, min(int(page_size), 500))
+        base = dict(params or {})
+        base.pop("page_token", None)
         items: list = []
         token = ""
         seen = set()
         result = {}
         while True:
-            params = {"page_size": page_size}
+            query = dict(base, page_size=page_size)
             if token:
-                params["page_token"] = token
-            result = self.get(f"/v7/drives/{drive_id}/files/{parent_id}/children",
-                              params=params)
+                query["page_token"] = token
+            result = self.get(path, params=query)
             data = result.get("data") or {}
             items.extend(data.get("items") or [])
             token = data.get("next_page_token") or ""
@@ -185,11 +184,21 @@ class WPSClient:
                 break
             if token in seen:
                 raise WPSAPIError({"result": "fail", "msg": "pagination token repeated"},
-                              context="list_files")
+                                  context=context or path)
             seen.add(token)
         result.setdefault("data", {})["items"] = items
         result["data"].pop("next_page_token", None)
         return result
+
+    def list_drives(self, page_size: int = 100):
+        """列出全部云盘；自动跟随 next_page_token。"""
+        return self._paged_items("/v7/drives", params={"allotee_type": "user"},
+                                 page_size=page_size, context="list_drives")
+
+    def list_files(self, drive_id: str, parent_id: str = "0", page_size: int = 100):
+        """列出目录下全部文件；自动跟随 next_page_token。"""
+        return self._paged_items(f"/v7/drives/{drive_id}/files/{parent_id}/children",
+                                 page_size=page_size, context="list_files")
 
     def file_meta(self, drive_id: str, file_id: str):
         return self.get(f"/v7/drives/{drive_id}/files/{file_id}/meta")
