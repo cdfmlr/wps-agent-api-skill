@@ -38,6 +38,18 @@ OPENAPI = "https://openapi.wps.cn"   # 云盘/文件/内容抽取
 DOCS_API = "https://api.wps.cn"      # Writer(DOCX)/Slides(PPTX) 对象模型
 
 
+def _error_message(payload: dict) -> str:
+    """Pick a human-readable message; never treat a successful `result` as an error."""
+    for key in ("msg", "message", "errmsg"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    result = payload.get("result")
+    if isinstance(result, str) and result.strip().lower() not in ("", "ok"):
+        return result.strip()
+    return "no error detail returned"
+
+
 class WPSAPIError(RuntimeError):
     """HTTP or JSON-level error returned by the WPS API."""
 
@@ -49,7 +61,7 @@ class WPSAPIError(RuntimeError):
         self.context = context
         self.code = payload.get("code")
         self.errno = payload.get("errno")
-        self.msg = payload.get("msg") or payload.get("result") or "unknown error"
+        self.msg = _error_message(payload)
         self.retryable = http_status == 429 or (http_status is not None and 500 <= http_status < 600)
         parts = []
         if context:

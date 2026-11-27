@@ -70,6 +70,13 @@ class ErrorTest(unittest.TestCase):
         self.assertIn("reason=permissionDenied", text)
         self.assertFalse(err.retryable)
 
+    def test_success_result_is_not_used_as_message(self):
+        err = WPSAPIError({"result": "ok"}, http_status=404)
+        text = str(err)
+        self.assertIn("HTTP 404", text)
+        self.assertIn("msg=no error detail returned", text)
+        self.assertNotIn("msg=ok", text)
+
     def test_retryable_status(self):
         self.assertTrue(WPSAPIError({"msg": "busy"}, http_status=429).retryable)
         self.assertTrue(WPSAPIError({"msg": "boom"}, http_status=503).retryable)
