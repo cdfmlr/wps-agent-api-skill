@@ -57,7 +57,7 @@ class WPSClient:
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.load(resp)
         if data.get("result") != "ok":
-            raise RuntimeError(f"换取 token 失败: {data}")
+            raise RuntimeError(f"换取 token 失败: code={data.get('code')} msg={data.get('msg')}")
         self._token = data["data"]["access_token"]
         self._expires_at = time.time() + int(data["data"].get("expires_in", 43200)) - 60
         return self._token
@@ -144,7 +144,8 @@ class WPSClient:
             if i < retries - 1:
                 time.sleep(wait)
         if not last:
-            raise RuntimeError(f"下载失败：未拿到文件内容（{info.get('msg') or info}）")
+            detail = info.get("msg") or f"code={info.get('code')}"
+            raise RuntimeError(f"下载失败：未拿到文件内容（{detail}）")
         for item in (info.get("data") or {}).get("hashes") or []:
             if item.get("type") == "sha1" and item.get("sum"):
                 actual = hashlib.sha1(last).hexdigest()
