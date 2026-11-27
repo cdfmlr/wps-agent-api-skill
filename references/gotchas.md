@@ -11,11 +11,13 @@ Verified against a live Agent Key on 2026-11-27.
 | Writer DOCX object model | `api.wps.cn` | `/v7/docs/{file_id}/...` |
 | Slides PPTX object model | `api.wps.cn` | `/v7/slides/{file_id}/...` |
 
-Sending `/v7/docs` to `openapi.wps.cn` returns:
+Sending `/v7/docs` or `/v7/slides` to `openapi.wps.cn` returns:
 
 ```json
 {"errno":10000,"msg":"unable to parse claims","result":"permissionDenied"}
 ```
+
+The Slides docs list `openapi.wps.cn`, but live Agent Key tests only work on `api.wps.cn`. Use `api.wps.cn` for both `/v7/docs` and `/v7/slides`.
 
 ## Auth
 
@@ -98,6 +100,17 @@ With the Agent Key tested:
 - Structured writes fail: `/v7/sheets/...` and `/v7/airsheet/...` return `401 unable to parse claims`.
 
 Do not promise Excel automation with this key. Ask for a user OAuth token if spreadsheet writes are required.
+
+## PPTX specifics
+
+- A newly created `.pptx` already has one title slide (`layout=1`). Add blank slides with `slides/items/insert`, `layout: 12`.
+- Use the numeric `slide_id` from `slides/items/query` in every shape call; `slide_index` is 1-based but is not the ID.
+- Textbox and table insertion take top-level `slide_id`; text/table/geometry APIs take `target.slide_id`.
+- Shape text queries return `data.data.text`. Slide-note **queries** return `data.data.notes_text`; note insertion returns a flat `data` object.
+- Font `color` is written as CSS `#RRGGBB` but read back as an OLE/BGR integer.
+- `paragraph.alignment` updates are rejected (`500410002 invalid alignment`), although query returns an integer.
+- Table cells are 1-based: `shapes/tables/update` with `["CELL_TEXT"]`, `row`, `column`, `text`.
+- `properties` on Slides follows the same uppercase-array rule, even where docs show a scalar string.
 
 ## Concurrency and locks
 

@@ -174,11 +174,9 @@ print([n for n in z.namelist() if "header" in n or "footer" in n or "comment" in
 print(z.read("word/document.xml").decode().count("<w:tbl>"))
 ```
 
-## 12. PPTX read
+## 12. PPTX read and write
 
-```json
-{"properties":["COUNT"]}
-```
+List slides:
 
 ```json
 {"properties":["LIST"]}
@@ -186,9 +184,73 @@ print(z.read("word/document.xml").decode().count("<w:tbl>"))
 
 Endpoint: `POST https://api.wps.cn/v7/slides/{file_id}/slides/items/query`.
 
-`LIST` returns `slide_id`, `slide_index`, `name`, `layout`.
+`LIST` returns `slide_id`, `slide_index`, `name`, `layout`. Use `slide_id` in later calls.
 
-To edit text: query `shapes/items`, then use `shapes/texts/update`. Shapes support textboxes, pictures, lines, autoshapes, tables, charts, and WebShape; animations, notes, comments, and sections are separate endpoints.
+List shapes and read text:
+
+```json
+{"target":{"slide_id":<slide_id>},"properties":["LIST"]}
+```
+
+```json
+{"target":{"slide_id":<slide_id>,"shape_id":2},"properties":["TEXT_CONTENT"]}
+```
+
+Endpoints: `POST /v7/slides/{file_id}/shapes/items/query` and `/shapes/texts/query`.
+
+Update text and font:
+
+```json
+{"target":{"slide_id":<slide_id>,"shape_id":2},
+ "properties":["TEXT_CONTENT","FONT"],
+ "text":"WPS Agent API PPTX 实测",
+ "font":{"name":"微软雅黑","size":32,"bold":true,"color":"#1F4E79"}}
+```
+
+Find/replace within a shape: use `"properties":["TEXT_REPLACE"]` plus `find_what` / `replace_what`.
+
+Insert a blank slide, textbox, and table:
+
+```json
+{"insert_mode":"BATCH","items":[{"layout":12,"index":2}]}
+```
+
+```json
+{"slide_id":<slide_id>,
+ "textboxes":[{"left":120,"top":470,"width":600,"height":50,"text":"文本框"}]}
+```
+
+```json
+{"slide_id":<slide_id_2>,"tables":[{"rows":3,"columns":3,"left":80,"top":140}]}
+```
+
+Endpoints: `/slides/items/insert`, `/shapes/items/textboxes`, `/shapes/items/tables`.
+
+Write table cells and notes:
+
+```json
+{"target":{"slide_id":<slide_id_2>,"shape_id":3},
+ "properties":["CELL_TEXT"],"row":1,"column":1,"text":"指标"}
+```
+
+```json
+{"target":{"slide_id":<slide_id>},"text":"演讲者备注"}
+```
+
+Endpoints: `/shapes/tables/update`, `/slides/notes/insert` (query with `/slides/notes/query`).
+
+CLI equivalents:
+
+```bash
+python3 scripts/wps_api.py slides <file_id>
+python3 scripts/wps_api.py shapes <file_id> <slide_id>
+python3 scripts/wps_api.py shape-text <file_id> <slide_id> <shape_id>
+python3 scripts/wps_api.py set-text <file_id> <slide_id> <shape_id> "新标题"
+python3 scripts/wps_api.py add-textbox <file_id> <slide_id> "正文"
+python3 scripts/wps_api.py add-table <file_id> <slide_id> --rows 3 --cols 3
+python3 scripts/wps_api.py set-cell <file_id> <slide_id> <shape_id> 1 1 "指标"
+python3 scripts/wps_api.py add-note <file_id> <slide_id> "备注"
+```
 
 ## 13. XLSX read
 

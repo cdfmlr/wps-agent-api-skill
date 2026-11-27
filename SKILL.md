@@ -65,9 +65,17 @@ Do **not** round-trip through content extraction (`/content?format=markdown`) wh
 
 ## PPTX
 
-- Read: `POST /v7/slides/{file_id}/slides/items/query` with `{"properties":["COUNT"]}` or `["LIST"]`.
-- Edit text: query `shapes/items`, then `shapes/texts/update`.
-- Also available: tables, charts, animations, notes, comments, sections, masters.
+Read and write are both live-tested. Slides live on `https://api.wps.cn`; the official docs' `openapi.wps.cn` returns 401.
+
+- List: `POST /v7/slides/{file_id}/slides/items/query` with `{"properties":["COUNT"]}` or `["LIST"]`. Use the returned `slide_id`, not the 1-based `slide_index`.
+- Shapes: `POST /v7/slides/{file_id}/shapes/items/query` with `{"target":{"slide_id":...},"properties":["LIST"]}`.
+- Text: read `shapes/texts/query`; replace with `shapes/texts/update` (`TEXT_CONTENT`), find/replace with `TEXT_REPLACE`, append with `shapes/texts/append`.
+- New content: `shapes/items/textboxes`, `shapes/items/tables`, `slides/items/insert` (blank layout `12`).
+- Tables: read `shapes/tables/query` with `["CELLS"]`; write a cell with `shapes/tables/update` `["CELL_TEXT"]` and 1-based `row`/`column`.
+- Notes: `slides/notes/insert|query|update|append`.
+- Font updates work (`name`, `size`, `bold`, `color` as `#RRGGBB`). Paragraph `alignment` updates return `invalid alignment`; avoid them for now.
+
+CLI: `slides`, `shapes`, `shape-text`, `set-text`, `add-textbox`, `add-slide`, `add-table`, `table-cells`, `set-cell`, `notes`, `add-note`.
 
 ## Official docs lookup
 

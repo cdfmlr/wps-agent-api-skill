@@ -13,6 +13,12 @@
   python3 scripts/wps_api.py page-number <file_id>
   python3 scripts/wps_api.py comment <file_id> 1 "批注内容"
   python3 scripts/wps_api.py download <drive_id> <file_id> out.docx
+  python3 scripts/wps_api.py slides <file_id>
+  python3 scripts/wps_api.py shapes <file_id> <slide_id>
+  python3 scripts/wps_api.py add-textbox <file_id> <slide_id> "标题"
+  python3 scripts/wps_api.py add-table <file_id> <slide_id> --rows 3 --cols 3
+  python3 scripts/wps_api.py set-cell <file_id> <slide_id> <shape_id> 1 1 "指标"
+  python3 scripts/wps_api.py add-note <file_id> <slide_id> "演讲者备注"
 """
 from __future__ import annotations
 
@@ -197,6 +203,92 @@ class WPSClient:
                           "text": text}, host=DOCS_API)
 
 
+    # ---------- Slides / PPTX ----------
+    # In practice Slides live on api.wps.cn. openapi.wps.cn rejects /v7/slides
+    # with 401 "unable to parse claims", despite the official docs' host.
+    def ppt_slides(self, file_id: str, properties=("LIST",)):
+        return self.post(f"/v7/slides/{file_id}/slides/items/query",
+                         {"properties": list(properties)}, host=DOCS_API)
+
+    def ppt_slide_insert(self, file_id: str, index: int | None = None, layout: int = 12):
+        item = {"layout": layout}
+        if index is not None:
+            item["index"] = index
+        return self.post(f"/v7/slides/{file_id}/slides/items/insert",
+                         {"insert_mode": "BATCH", "items": [item]}, host=DOCS_API)
+
+    def ppt_shapes(self, file_id: str, slide_id: int):
+        return self.post(f"/v7/slides/{file_id}/shapes/items/query",
+                         {"target": {"slide_id": slide_id}, "properties": ["LIST"]},
+                         host=DOCS_API)
+
+    def ppt_shape_text(self, file_id: str, slide_id: int, shape_id: int,
+                       properties=("TEXT_CONTENT",)):
+        return self.post(f"/v7/slides/{file_id}/shapes/texts/query",
+                         {"target": {"slide_id": slide_id, "shape_id": shape_id},
+                          "properties": list(properties)}, host=DOCS_API)
+
+    def ppt_set_text(self, file_id: str, slide_id: int, shape_id: int, text: str,
+                     font: dict | None = None):
+        """替换形状文本；可同时设 font。paragraph.alignment 目前会被引擎拒绝。"""
+        props = ["TEXT_CONTENT", "FONT"] if font else ["TEXT_CONTENT"]
+        body = {"target": {"slide_id": slide_id, "shape_id": shape_id},
+                "properties": props, "text": text}
+        if font:
+            body["font"] = font
+        return self.post(f"/v7/slides/{file_id}/shapes/texts/update", body, host=DOCS_API)
+
+    def ppt_replace_text(self, file_id: str, slide_id: int, shape_id: int,
+                         find_what: str, replace_what: str, match_case: bool = False):
+        return self.post(f"/v7/slides/{file_id}/shapes/texts/update",
+                         {"target": {"slide_id": slide_id, "shape_id": shape_id},
+                          "properties": ["TEXT_REPLACE"], "find_what": find_what,
+                          "replace_what": replace_what, "match_case": match_case},
+                         host=DOCS_API)
+
+    def ppt_add_textbox(self, file_id: str, slide_id: int, text: str, *,
+                        left: float = 100, top: float = 100,
+                        width: float = 600, height: float = 60):
+        return self.post(f"/v7/slides/{file_id}/shapes/items/textboxes",
+                         {"slide_id": slide_id,
+                          "textboxes": [{"left": left, "top": top, "width": width,
+                                         "height": height, "text": text}]},
+                         host=DOCS_API)
+
+    def ppt_add_table(self, file_id: str, slide_id: int, rows: int = 3, columns: int = 3,
+                      left: float = 80, top: float = 140):
+        return self.post(f"/v7/slides/{file_id}/shapes/items/tables",
+                         {"slide_id": slide_id,
+                          "tables": [{"rows": rows, "columns": columns,
+                                      "left": left, "top": top}]}, host=DOCS_API)
+
+    def ppt_table_cells(self, file_id: str, slide_id: int, shape_id: int):
+        return self.post(f"/v7/slides/{file_id}/shapes/tables/query",
+                         {"target": {"slide_id": slide_id, "shape_id": shape_id},
+                          "properties": ["CELLS"]}, host=DOCS_API)
+
+    def ppt_set_cell(self, file_id: str, slide_id: int, shape_id: int,
+                     row: int, column: int, text: str):
+        return self.post(f"/v7/slides/{file_id}/shapes/tables/update",
+                         {"target": {"slide_id": slide_id, "shape_id": shape_id},
+                          "properties": ["CELL_TEXT"], "row": row, "column": column,
+                          "text": text}, host=DOCS_API)
+
+    def ppt_notes(self, file_id: str, slide_id: int):
+        return self.post(f"/v7/slides/{file_id}/slides/notes/query",
+                         {"target": {"slide_id": slide_id}}, host=DOCS_API)
+
+    def ppt_add_note(self, file_id: str, slide_id: int, text: str):
+        return self.post(f"/v7/slides/{file_id}/slides/notes/insert",
+                         {"target": {"slide_id": slide_id}, "text": text}, host=DOCS_API)
+
+    def ppt_set_geometry(self, file_id: str, slide_id: int, shape_id: int, *,
+                         left: float, top: float, width: float, height: float):
+        return self.post(f"/v7/slides/{file_id}/shapes/items/update",
+                         {"target": {"slide_id": slide_id, "shape_id": shape_id},
+                          "properties": ["GEOMETRY"], "left": left, "top": top,
+                          "width": width, "height": height}, host=DOCS_API)
+
 # ---------- helpers ----------
 def extract_link_id(value: str) -> str:
     m = re.search(r"/(?:l|link)/([A-Za-z0-9]+)", value)
@@ -254,6 +346,80 @@ def main():
     cm.add_argument("paragraph_index", type=int)
     cm.add_argument("text")
 
+    sl = sub.add_parser("slides")
+    sl.add_argument("file_id")
+    sl.add_argument("--count", action="store_true")
+
+    sh = sub.add_parser("shapes")
+    sh.add_argument("file_id")
+    sh.add_argument("slide_id", type=int)
+
+    st = sub.add_parser("shape-text")
+    st.add_argument("file_id")
+    st.add_argument("slide_id", type=int)
+    st.add_argument("shape_id", type=int)
+
+    sx = sub.add_parser("set-text")
+    sx.add_argument("file_id")
+    sx.add_argument("slide_id", type=int)
+    sx.add_argument("shape_id", type=int)
+    sx.add_argument("text")
+    sx.add_argument("--font-name")
+    sx.add_argument("--font-size", type=float)
+    sx.add_argument("--bold", action="store_true")
+    sx.add_argument("--color")
+
+    sr = sub.add_parser("replace-text")
+    sr.add_argument("file_id")
+    sr.add_argument("slide_id", type=int)
+    sr.add_argument("shape_id", type=int)
+    sr.add_argument("find_what")
+    sr.add_argument("replace_what")
+
+    tb = sub.add_parser("add-textbox")
+    tb.add_argument("file_id")
+    tb.add_argument("slide_id", type=int)
+    tb.add_argument("text")
+    tb.add_argument("--left", type=float, default=100)
+    tb.add_argument("--top", type=float, default=100)
+    tb.add_argument("--width", type=float, default=600)
+    tb.add_argument("--height", type=float, default=60)
+
+    asl = sub.add_parser("add-slide")
+    asl.add_argument("file_id")
+    asl.add_argument("--index", type=int)
+    asl.add_argument("--layout", type=int, default=12)
+
+    at = sub.add_parser("add-table")
+    at.add_argument("file_id")
+    at.add_argument("slide_id", type=int)
+    at.add_argument("--rows", type=int, default=3)
+    at.add_argument("--cols", type=int, default=3)
+    at.add_argument("--left", type=float, default=80)
+    at.add_argument("--top", type=float, default=140)
+
+    tc = sub.add_parser("table-cells")
+    tc.add_argument("file_id")
+    tc.add_argument("slide_id", type=int)
+    tc.add_argument("shape_id", type=int)
+
+    sc = sub.add_parser("set-cell")
+    sc.add_argument("file_id")
+    sc.add_argument("slide_id", type=int)
+    sc.add_argument("shape_id", type=int)
+    sc.add_argument("row", type=int)
+    sc.add_argument("column", type=int)
+    sc.add_argument("text")
+
+    nt = sub.add_parser("notes")
+    nt.add_argument("file_id")
+    nt.add_argument("slide_id", type=int)
+
+    an = sub.add_parser("add-note")
+    an.add_argument("file_id")
+    an.add_argument("slide_id", type=int)
+    an.add_argument("text")
+
     args = p.parse_args()
     c = WPSClient()
 
@@ -283,6 +449,68 @@ def main():
     elif args.cmd == "comment":
         print(json.dumps(c.doc_add_comment(args.file_id, args.paragraph_index, args.text), ensure_ascii=False, indent=2))
 
+    elif args.cmd == "slides":
+        d = c.ppt_slides(args.file_id)
+        slides = (d.get("data") or {}).get("list_data", {}).get("slides", [])
+        if args.count:
+            print(len(slides))
+        else:
+            for s in slides:
+                print(f"{s.get('slide_index'):>3}  {s.get('slide_id'):>12}  "
+                      f"layout={s.get('layout')}  {s.get('name')}")
+    elif args.cmd == "shapes":
+        d = c.ppt_shapes(args.file_id, args.slide_id)
+        for s in (d.get("data") or {}).get("list_data", {}).get("shapes", []):
+            print(f"{s.get('shape_id'):>5}  type={s.get('type'):<3} {s.get('name', '')}  "
+                  f"({s.get('left')}, {s.get('top')}, {s.get('width')}, {s.get('height')})")
+    elif args.cmd == "shape-text":
+        d = c.ppt_shape_text(args.file_id, args.slide_id, args.shape_id)
+        print((d.get("data") or {}).get("data", {}).get("text", ""))
+    elif args.cmd == "set-text":
+        font = None
+        if args.font_name or args.font_size or args.bold or args.color:
+            font = {}
+            if args.font_name:
+                font["name"] = args.font_name
+            if args.font_size:
+                font["size"] = args.font_size
+            if args.bold:
+                font["bold"] = True
+            if args.color:
+                font["color"] = args.color
+        print(json.dumps(c.ppt_set_text(args.file_id, args.slide_id, args.shape_id,
+                                        args.text, font), ensure_ascii=False, indent=2))
+    elif args.cmd == "replace-text":
+        print(json.dumps(c.ppt_replace_text(args.file_id, args.slide_id, args.shape_id,
+                                            args.find_what, args.replace_what),
+                         ensure_ascii=False, indent=2))
+    elif args.cmd == "add-textbox":
+        print(json.dumps(c.ppt_add_textbox(args.file_id, args.slide_id, args.text,
+                                           left=args.left, top=args.top,
+                                           width=args.width, height=args.height),
+                         ensure_ascii=False, indent=2))
+    elif args.cmd == "add-slide":
+        print(json.dumps(c.ppt_slide_insert(args.file_id, args.index, args.layout),
+                         ensure_ascii=False, indent=2))
+    elif args.cmd == "add-table":
+        print(json.dumps(c.ppt_add_table(args.file_id, args.slide_id, args.rows,
+                                         args.cols, args.left, args.top),
+                         ensure_ascii=False, indent=2))
+    elif args.cmd == "table-cells":
+        d = c.ppt_table_cells(args.file_id, args.slide_id, args.shape_id)
+        for cell in (d.get("data") or {}).get("data", {}).get("cells", []):
+            print(f"{cell.get('row')},{cell.get('column')}: {cell.get('text', '')}")
+    elif args.cmd == "set-cell":
+        print(json.dumps(c.ppt_set_cell(args.file_id, args.slide_id, args.shape_id,
+                                        args.row, args.column, args.text),
+                         ensure_ascii=False, indent=2))
+    elif args.cmd == "notes":
+        d = c.ppt_notes(args.file_id, args.slide_id)
+        data = (d.get("data") or {}).get("data") or d.get("data") or {}
+        print(data.get("notes_text", ""))
+    elif args.cmd == "add-note":
+        print(json.dumps(c.ppt_add_note(args.file_id, args.slide_id, args.text),
+                         ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
     main()

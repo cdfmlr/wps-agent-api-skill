@@ -45,7 +45,7 @@
 | 域 | 接口数 | 状态 |
 |---|---:|---|
 | Writer / DOCX | 98 | ✅ 读写已实测 |
-| Slides / PPTX | 52 | ✅ 读取已实测；写入接口同 host/token |
+| Slides / PPTX | 52 | ✅ 读写已实测 |
 | Drive / File | 46 | ✅ 列盘、列目录、创建、下载已实测 |
 | Sheets / XLSX | 43 | ⚠️ 只能读；结构化写接口当前 401 |
 | DBSheet / 多维表格 | 40 | ⚠️ 需用户 OAuth token，未验证 |
@@ -167,15 +167,22 @@ python3 scripts/wps_api.py read https://www.kdocs.cn/l/cpSf5NCLgM4i
 7. revisions/update                 接受/拒绝修订
 ```
 
-### 读取 PPTX
+### 读取与编辑 PPTX
 
-```http
-POST https://api.wps.cn/v7/slides/{file_id}/slides/items/query
-{"properties":["COUNT"]}
-{"properties":["LIST"]}
+```bash
+python3 scripts/wps_api.py slides <file_id>
+python3 scripts/wps_api.py shapes <file_id> <slide_id>
+python3 scripts/wps_api.py shape-text <file_id> <slide_id> <shape_id>
+python3 scripts/wps_api.py set-text <file_id> <slide_id> <shape_id> "新标题" --font-size 28 --bold
+python3 scripts/wps_api.py add-textbox <file_id> <slide_id> "正文" --left 120 --top 450
+python3 scripts/wps_api.py add-table <file_id> <slide_id> --rows 3 --cols 3
+python3 scripts/wps_api.py set-cell <file_id> <slide_id> <shape_id> 1 1 "指标"
+python3 scripts/wps_api.py add-note <file_id> <slide_id> "演讲者备注"
 ```
 
-返回每页的 `slide_id`、`slide_index`、`name`、`layout`。改文字用 `shapes/items/query` + `shapes/texts/update`。
+Slides 实际走 `api.wps.cn`（不是 `openapi.wps.cn`）。调用形状/文本接口时用 `slides` 输出里的 `slide_id`，不是 `slide_index`。
+
+实测样例：<https://www.kdocs.cn/l/<demo_link>>（2 页：文本框、3×3 表格、演讲者备注）
 
 ---
 
@@ -224,7 +231,7 @@ POST https://api.wps.cn/v7/slides/{file_id}/slides/items/query
 ## 已知限制
 
 - **XLSX / 智能表格 / 多维表格写入**：当前 Agent Key 过不了 token 校验，需要用户 OAuth token 或平台后续放开。
-- **PPTX 写入**：接口文档齐全，本次只做了读取实测。
+- **PPTX 段落对齐**：`shapes/texts/update` 的 `paragraph.alignment` 目前返回 `invalid alignment`；文字、字体、位置尺寸正常。
 - **最终一致性**：写入成功 ≠ 立刻可下载，必须轮询。
 - **内容抽取是有损的**：Markdown/plain 适合阅读，不适合格式保真回写。
 - **颜色**：`font_style.color_index` 在 insert 中未生效，颜色建议用 HTML/CSS。

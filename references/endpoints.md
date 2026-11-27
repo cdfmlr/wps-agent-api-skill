@@ -2,8 +2,11 @@
 
 Generated from the official WPS docs API (1,541 pages, 2026-11-27). Methods come from each endpoint's official page.
 Use `python3 scripts/wps_docs.py search <keyword>` / `get <doc_id>` for request bodies and full parameter tables.
+Live Agent Key calls require uppercase `properties` arrays, even where docs show lowercase strings.
 
 ## Writer / DOCX (98)
+
+Host: `https://api.wps.cn`.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -107,6 +110,8 @@ Use `python3 scripts/wps_docs.py search <keyword>` / `get <doc_id>` for request 
 | POST | `/v7/docs/{file_id}/ranges/xmls/insert` | 在区间插入 WordML、XML |
 
 ## Slides / PPTX (52)
+
+Host: `https://api.wps.cn` (docs list `openapi.wps.cn`, but live Agent Key calls there return 401).
 
 | Method | Path | Purpose |
 | --- | --- | --- |

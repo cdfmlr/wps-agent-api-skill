@@ -2,7 +2,7 @@
 
 > 实测日期：2026-11-27
 > 测试对象：`https://www.kdocs.cn/l/cpSf5NCLgM4i`（接入说明）中的 Agent API Key
-> 结论先行：**能用，而且对复杂 DOCX 很强。** DOCX 读写已全部实测通过；PPTX 读取实测通过（写入接口同 host/token，未逐项实测）；XLSX 可以读（内容抽取），但传统表格/智能表格的写接口目前返回 401。
+> 结论先行：**能用，而且对复杂 DOCX 很强。** DOCX 读写已全部实测通过；PPTX 读写也已实测通过；XLSX 可以读（内容抽取），但传统表格/智能表格的写接口目前返回 401。
 
 ---
 
@@ -62,7 +62,9 @@ GET /v7/drives?allotee_type=user&page_size=100
 
 本地可用 `python3 scripts/wps_api.py download ...` 重新拉取。
 
-### 2.4 PPTX 读取
+### 2.4 PPTX 读写
+
+读取：
 
 ```http
 POST /v7/slides/{file_id}/slides/items/query
@@ -70,7 +72,29 @@ POST /v7/slides/{file_id}/slides/items/query
 {"properties":["LIST"]}    -> 每张的 slide_id / slide_index / name / layout
 ```
 
-说明 Slides 服务同样接受当前 Agent Key。写入类接口（形状、文本、动画等）与读取在同一 host，但本次只做了读取验证，未逐项写测。
+写入：在一个新建的空白 PPTX 上逐项实测。
+
+| 操作 | 接口 | 结果 |
+|---|---|---|
+| 新建 PPTX | `POST /v7/drives/{drive}/files/0/create` | ✅ 自带 1 页标题版式 |
+| 插入幻灯片 | `slides/items/insert`（`layout: 12`） | ✅ |
+| 改标题/副标题 | `shapes/texts/update` + `FONT` | ✅ 文字、字号、加粗、颜色 |
+| 批量插文本框 | `shapes/items/textboxes` | ✅ 返回 `shape_ids` |
+| 插 3×3 表格 | `shapes/items/tables` | ✅ |
+| 写单元格 | `shapes/tables/update` `CELL_TEXT` | ✅ 1-based `row`/`column` |
+| 查找替换 | `shapes/texts/update` `TEXT_REPLACE` | ✅ |
+| 追加文本 | `shapes/texts/append` | ✅ |
+| 改形状位置尺寸 | `shapes/items/update` `GEOMETRY` | ✅ |
+| 演讲者备注 | `slides/notes/insert` / `query` | ✅ |
+| 下载校验 | `GET /v7/drives/.../download` | ✅ 2 页 + `notesSlide1.xml` |
+
+**在线产物**：<https://www.kdocs.cn/l/<demo_link>>
+（`WPS-API-PPT-测试.pptx`：2 页；标题页含 2 个文本框，第二页含 3×3 表格和文本框，第 1 页有演讲者备注）
+
+注意两点：
+
+- Slides 实际走 `api.wps.cn`；官方文档写 `openapi.wps.cn`，但实测后者返回 401。
+- `properties` 同样必须是大写数组；文档里的小写字符串或标量会报 `unsupported property` / protobuf 解析错误。
 
 ### 2.5 XLSX 的现状
 
@@ -163,10 +187,15 @@ GET /v7/airsheet/{file_id}/worksheets
 
 ### 场景 C：改 PPTX
 
-- `slides/items/query` 拿 slide_id。
-- `shapes/items/query` 拿形状。
-- `shapes/texts/update` 改文字；`shapes/items/update` 改位置/大小/样式。
-- `slides/animations/*` 做动画。
+1. `slides/items/query` 拿 `slide_id`（不是 1-based 的 `slide_index`）。
+2. `shapes/items/query` 拿 `shape_id`、类型和位置。
+3. `shapes/texts/update` 改文字/字体；`TEXT_REPLACE` 做页内替换；`shapes/texts/append` 追加。
+4. `shapes/items/textboxes` / `tables` 插新内容；`shapes/items/update` 改位置尺寸。
+5. `shapes/tables/query` + `update` 读写单元格（1-based）。
+6. `slides/items/insert` 插空白页（`layout: 12`）；`slides/notes/*` 写备注。
+7. `slides/animations/*` 做动画。
+
+段落对齐更新目前不稳定：`paragraph.alignment` 传 `pp_align_center` 等值会返回 `invalid alignment`；文字和字体正常。
 
 ---
 
@@ -244,6 +273,12 @@ python3 scripts/wps_api.py header <file_id> "WPS Agent API 示例"
 python3 scripts/wps_api.py page-number <file_id>
 python3 scripts/wps_api.py comment <file_id> 1 "整篇正文由 HTML 写入。"
 python3 scripts/wps_api.py download <drive_id> <file_id> out.docx
+
+python3 scripts/wps_api.py slides <file_id>
+python3 scripts/wps_api.py shapes <file_id> <slide_id>
+python3 scripts/wps_api.py add-textbox <file_id> <slide_id> "标题"
+python3 scripts/wps_api.py add-table <file_id> <slide_id> --rows 3 --cols 3
+python3 scripts/wps_api.py add-note <file_id> <slide_id> "备注"
 ```
 
 ### 完整示例

@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 - `SKILL.md` — Codex skill entrypoint: usage triggers, hard rules, workflows. Keep it short; details go in `references/`.
-- `scripts/wps_api.py` — zero-dependency client/CLI for auth, drives, reads, DOCX edits, downloads.
+- `scripts/wps_api.py` — zero-dependency client/CLI for auth, drives, reads, DOCX/PPTX edits, downloads.
 - `scripts/wps_docs.py` — local index of official WPS API docs (`search`, `get`, `sync`).
 - `references/` — `endpoints.md`, `gotchas.md`, `recipes.md`.
 - `assets/demo.html` — sample HTML for `ranges/htmls/insert`.
