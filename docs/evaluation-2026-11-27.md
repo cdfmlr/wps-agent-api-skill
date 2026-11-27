@@ -122,10 +122,10 @@ GET /v7/airsheet/{file_id}/worksheets
 |---|---:|---|
 | Writer / DOCX | 98 | 文字文档对象模型 |
 | Slides / PPTX | 52 | 幻灯片、形状、图表、动画 |
-| Drive / File | 46 | 盘、目录、上传下载、权限、版本 |
-| Sheets / XLSX | 43 | 传统电子表格（当前 Key 401） |
-| DBSheet / 多维表格 | 40 | 记录、字段、视图、Webhook（当前 Key 未验证） |
-| AirSheet / 智能表格 | 31 | 单元格、条件格式、数据校验（当前 Key 401） |
+| Drive / File | 41 | 盘、目录、上传下载、权限、版本 |
+| Sheets / XLSX | 42 | 传统电子表格（当前 Key 401） |
+| DBSheet / 多维表格 | 39 | 记录、字段、视图、Webhook（当前 Key 未验证） |
+| AirSheet / 智能表格 | 28 | 单元格、条件格式、数据校验（当前 Key 401） |
 | AirPage / 智能文档 | 22 | 块级 CRUD、Markdown/HTML 转块、导出 DOCX/PDF |
 | 其他 | 很多 | 通讯录、消息、日历、审批、邮箱、待办、会议等 |
 
