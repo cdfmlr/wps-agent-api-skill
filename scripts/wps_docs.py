@@ -92,14 +92,17 @@ def cmd_sync(args):
         try:
             text = doc_markdown(d, args.lang)
             name = d["path"].strip("/").replace("/", "__") or d["id"]
-            path = os.path.join(args.out, name + ".md")
+            path = os.path.realpath(os.path.join(args.out, name + ".md"))
+            if os.path.dirname(path) != os.path.realpath(args.out):
+                raise ValueError(f"unsafe doc path: {d['path']}")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(text)
             return d, name + ".md", len(text)
         except Exception as exc:  # keep going; report at the end
             return d, None, str(exc)
 
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+    workers = max(1, min(args.workers, 16))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         results = list(pool.map(fetch, docs))
 
     index = [{"id": d["id"], "title": d["title"], "path": d["path"],

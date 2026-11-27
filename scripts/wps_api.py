@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -101,7 +102,7 @@ class WPSClient:
                         params={"page_size": page_size})
 
     def file_meta(self, drive_id: str, file_id: str):
-        return self.get(f"/v7/drives/{drive_id}/files/{file_id}")
+        return self.get(f"/v7/drives/{drive_id}/files/{file_id}/meta")
 
     def link_meta(self, link_id: str):
         return self.get(f"/v7/links/{link_id}/meta")
@@ -122,13 +123,15 @@ class WPSClient:
         """下载源格式。
 
         写入后 WPS 侧导出有 10~30 秒延迟。先 settle 秒，再连续两次拿到相同内容才返回；
-        如需立即下载（文件早已存在），传 settle=0。
+        如需立即下载（文件早已存在），传 settle=0。空内容或 SHA-1 不匹配时抛错。
         """
         time.sleep(settle)
         last = b""
+        info = {}
         for i in range(retries):
-            info = self.get(f"/v7/drives/{drive_id}/files/{file_id}/download", params={"with_hash": "true"})
-            url = info.get("data", {}).get("url")
+            info = self.get(f"/v7/drives/{drive_id}/files/{file_id}/download",
+                            params={"with_hash": "true"})
+            url = (info.get("data") or {}).get("url")
             if not url:
                 time.sleep(wait)
                 continue
@@ -140,6 +143,13 @@ class WPSClient:
             last = data
             if i < retries - 1:
                 time.sleep(wait)
+        if not last:
+            raise RuntimeError(f"下载失败：未拿到文件内容（{info.get('msg') or info}）")
+        for item in (info.get("data") or {}).get("hashes") or []:
+            if item.get("type") == "sha1" and item.get("sum"):
+                actual = hashlib.sha1(last).hexdigest()
+                if actual != item["sum"]:
+                    raise RuntimeError(f"下载校验失败：sha1 {actual} != {item['sum']}")
         with open(out_path, "wb") as fh:
             fh.write(last)
         return out_path, len(last)
