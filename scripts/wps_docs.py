@@ -109,12 +109,16 @@ def cmd_sync(args):
 
     index = [{"id": d["id"], "title": d["title"], "path": d["path"],
               "file": f, "bytes": n} for d, f, n in results if f]
-    with open(os.path.join(args.out, "index.json"), "w", encoding="utf-8") as fh:
-        json.dump(index, fh, ensure_ascii=False, indent=1)
     failed = [r for r in results if not r[1]]
     print(f"synced {len(index)} docs -> {args.out}")
     for d, _, err in failed[:10]:
-        print(f"FAILED {d['title']}: {err}")
+        print(f"FAILED {d['title']}: {err}", file=sys.stderr)
+    if len(failed) > 10:
+        print(f"... {len(failed) - 10} more failure(s)", file=sys.stderr)
+    if not index:
+        raise SystemExit(f"同步失败：{len(failed)} 篇文档全部抓取失败")
+    with open(os.path.join(args.out, "index.json"), "w", encoding="utf-8") as fh:
+        json.dump(index, fh, ensure_ascii=False, indent=1)
 
 
 def main():
