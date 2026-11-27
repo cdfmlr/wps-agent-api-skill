@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -139,4 +141,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        raise SystemExit(130) from None
+    except (urllib.error.URLError, RuntimeError, OSError, ValueError) as exc:
+        print(f"错误: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None

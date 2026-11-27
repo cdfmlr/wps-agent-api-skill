@@ -112,6 +112,13 @@ Do not promise Excel automation with this key. Ask for a user OAuth token if spr
 - Table cells are 1-based: `shapes/tables/update` with `["CELL_TEXT"]`, `row`, `column`, `text`.
 - `properties` on Slides follows the same uppercase-array rule, even where docs show a scalar string.
 
+## Errors and retries
+
+- HTTP errors and JSON bodies with non-zero `code` / `errno` raise `WPSAPIError`.
+- The message includes `HTTP <status>`, `code`, `errno`, `msg`, and `reason` when present.
+- The CLI prints the error to stderr and exits 1; successful commands exit 0.
+- There is no automatic retry. Handle 429/5xx at the call site; do not silently retry mutating requests.
+
 ## Concurrency and locks
 
 Avoid concurrent writes to the same document. Lock conflicts return:

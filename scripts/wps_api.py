@@ -38,6 +38,48 @@ OPENAPI = "https://openapi.wps.cn"   # 云盘/文件/内容抽取
 DOCS_API = "https://api.wps.cn"      # Writer(DOCX)/Slides(PPTX) 对象模型
 
 
+class WPSAPIError(RuntimeError):
+    """HTTP or JSON-level error returned by the WPS API."""
+
+    def __init__(self, payload, http_status: int | None = None, context: str | None = None):
+        if not isinstance(payload, dict):
+            payload = {"msg": str(payload)}
+        self.payload = payload
+        self.http_status = http_status
+        self.context = context
+        self.code = payload.get("code")
+        self.errno = payload.get("errno")
+        self.msg = payload.get("msg") or payload.get("result") or "unknown error"
+        self.retryable = http_status == 429 or (http_status is not None and 500 <= http_status < 600)
+        parts = []
+        if context:
+            parts.append(context)
+        if http_status is not None:
+            parts.append(f"HTTP {http_status}")
+        if self.code is not None:
+            parts.append(f"code={self.code}")
+        if self.errno is not None:
+            parts.append(f"errno={self.errno}")
+        parts.append(f"msg={self.msg}")
+        reason = payload.get("reason")
+        if reason:
+            parts.append(f"reason={reason}")
+        if self.retryable:
+            parts.append("retryable=true")
+        super().__init__("; ".join(parts))
+
+
+def _is_api_error(payload) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("code") not in (None, 0, "0"):
+        return True
+    if payload.get("errno") not in (None, 0, "0"):
+        return True
+    result = payload.get("result")
+    return isinstance(result, str) and result.lower() in {"permissiondenied", "fail", "error"}
+
+
 class WPSClient:
     def __init__(self, api_key: str | None = None):
         self.api_key = (api_key or os.environ.get("WPS_AGENT_API_KEY")
@@ -54,12 +96,22 @@ class WPSClient:
             return self._token
         body = json.dumps({"grant_type": "api_key", "api_key": self.api_key}).encode()
         req = urllib.request.Request(TOKEN_URL, data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.load(resp)
-        if data.get("result") != "ok":
-            raise RuntimeError(f"换取 token 失败: code={data.get('code')} msg={data.get('msg')}")
-        self._token = data["data"]["access_token"]
-        self._expires_at = time.time() + int(data["data"].get("expires_in", 43200)) - 60
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.load(resp)
+        except urllib.error.HTTPError as exc:
+            text = exc.read().decode("utf-8", "ignore")
+            try:
+                payload = json.loads(text)
+            except Exception:
+                payload = {"msg": text[:500]}
+            raise WPSAPIError(payload, http_status=exc.code,
+                              context="POST /api/authorization/agent/v1/token") from None
+        token = (data.get("data") or {}).get("access_token")
+        if data.get("result") != "ok" or not token:
+            raise WPSAPIError(data, context="POST /api/authorization/agent/v1/token")
+        self._token = token
+        self._expires_at = time.time() + int((data.get("data") or {}).get("expires_in", 43200)) - 60
         return self._token
 
     # ---------- generic ----------
@@ -77,15 +129,19 @@ class WPSClient:
         try:
             with urllib.request.urlopen(req, timeout=90) as resp:
                 payload = resp.read()
-                if raw:
-                    return payload
-                return json.loads(payload or b"{}")
         except urllib.error.HTTPError as exc:
             text = exc.read().decode("utf-8", "ignore")
             try:
-                return json.loads(text)
+                error = json.loads(text)
             except Exception:
-                return {"http_status": exc.code, "raw": text[:500]}
+                error = {"msg": text[:500]}
+            raise WPSAPIError(error, http_status=exc.code, context=f"{method} {path}") from None
+        if raw:
+            return payload
+        result = json.loads(payload or b"{}")
+        if _is_api_error(result):
+            raise WPSAPIError(result, context=f"{method} {path}")
+        return result
 
     def get(self, path, **kw):
         return self.request("GET", path, **kw)
@@ -98,8 +154,30 @@ class WPSClient:
         return self.get("/v7/drives", params={"allotee_type": "user", "page_size": 100})
 
     def list_files(self, drive_id: str, parent_id: str = "0", page_size: int = 100):
-        return self.get(f"/v7/drives/{drive_id}/files/{parent_id}/children",
-                        params={"page_size": page_size})
+        """列出目录下全部文件；自动跟随 next_page_token。"""
+        page_size = max(1, min(int(page_size), 500))
+        items: list = []
+        token = ""
+        seen = set()
+        result = {}
+        while True:
+            params = {"page_size": page_size}
+            if token:
+                params["page_token"] = token
+            result = self.get(f"/v7/drives/{drive_id}/files/{parent_id}/children",
+                              params=params)
+            data = result.get("data") or {}
+            items.extend(data.get("items") or [])
+            token = data.get("next_page_token") or ""
+            if not token:
+                break
+            if token in seen:
+                raise WPSAPIError({"result": "fail", "msg": "pagination token repeated"},
+                              context="list_files")
+            seen.add(token)
+        result.setdefault("data", {})["items"] = items
+        result["data"].pop("next_page_token", None)
+        return result
 
     def file_meta(self, drive_id: str, file_id: str):
         return self.get(f"/v7/drives/{drive_id}/files/{file_id}/meta")
@@ -136,8 +214,12 @@ class WPSClient:
                 time.sleep(wait)
                 continue
             req = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.token}"})
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                data = resp.read()
+            try:
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    data = resp.read()
+            except urllib.error.HTTPError as exc:
+                raise WPSAPIError({"msg": "download storage request failed"},
+                                  http_status=exc.code, context="download storage") from None
             if data and data == last:
                 break
             last = data
@@ -524,4 +606,11 @@ def main():
                          ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except WPSAPIError as exc:
+        print(f"WPS API 错误: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
+    except (RuntimeError, urllib.error.URLError, OSError, ValueError) as exc:
+        print(f"错误: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None

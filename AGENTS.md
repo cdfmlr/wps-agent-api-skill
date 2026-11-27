@@ -9,10 +9,11 @@
 - `assets/demo.html` — sample HTML for `ranges/htmls/insert`.
 - `docs/evaluation-2026-11-27.md` — live-test findings and limits.
 - `agents/openai.yaml` — skill UI metadata.
+- `tests/test_client.py` — unit tests for pagination and error handling.
 - `SECURITY.md` — vulnerability reporting and key-handling policy.
-- `.github/workflows/ci.yml` — syntax and CLI smoke checks on Python 3.10/3.12.
+- `.github/workflows/ci.yml` — syntax, unit tests, and CLI checks on Python 3.10/3.12.
 
-No `src/` or automated API tests. CI only compiles scripts and checks CLI help.
+No `src/` or live API tests. CI compiles scripts, runs unit tests, and checks CLI help.
 
 ## Build, Test, and Development Commands
 
@@ -23,6 +24,7 @@ python3 scripts/wps_api.py drives                 # smoke test auth + drives
 python3 scripts/wps_api.py read https://www.kdocs.cn/l/...  # extract Markdown
 python3 scripts/wps_docs.py search 页眉            # query official docs
 python3 -m py_compile scripts/*.py                # syntax check
+python3 -m unittest discover -s tests -v           # unit tests
 python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py .
 ```
 
@@ -38,7 +40,7 @@ python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py .
 
 ## Testing Guidelines
 
-- No automated API tests. CI runs `compileall` and CLI `--help` only; do not claim live tests pass without running them.
+- Unit tests: `python3 -m unittest discover -s tests -v`. CI runs `compileall`, unit tests, and CLI `--help` only; do not claim live API tests pass without running them.
 - Smoke test: `python3 scripts/wps_api.py drives` and `python3 scripts/wps_docs.py search 批注`.
 - After DOCX writes, download and confirm `header1.xml`, `footer1.xml`, or `comments.xml`.
 - New tests: `unittest` under `tests/`, files `test_*.py`, mock HTTP so no key is needed.

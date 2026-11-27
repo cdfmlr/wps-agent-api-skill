@@ -28,6 +28,7 @@ Use the bundled standard-library client; no `pip install` is needed.
 5. **Download URLs need auth.** The storage URL returned by the download API requires `Authorization: Bearer <token>`; otherwise it returns `userNotLogin`.
 6. **Prefer HTML for complex layout.** `ranges/htmls/insert` produces portable tables (`tblW=100%`). `TABLE_FULL` creates `tcW=0` cells that can collapse in Word/LibreOffice.
 7. **XLSX is read-only with this key.** Read via content extraction. `/v7/sheets` and `/v7/airsheet` writes return `401 unable to parse claims`.
+8. **Failures raise `WPSAPIError`.** Non-zero `code`/`errno` and HTTP errors are exceptions; the CLI exits 1. There is no automatic retry, so handle 429/5xx at the call site.
 
 ## Quick start
 

@@ -202,6 +202,8 @@ Slides 实际走 `api.wps.cn`（不是 `openapi.wps.cn`）。调用形状/文本
 ├── scripts/
 │   ├── wps_api.py          # 零依赖 WPS API 客户端
 │   └── wps_docs.py         # 官方文档 JSON API 查询器
+├── tests/
+│   └── test_client.py      # 分页与错误处理单元测试
 ├── references/
 │   ├── endpoints.md        # 接口索引（Writer/Slides/File/AirPage...）
 │   ├── gotchas.md          # Host、枚举、导出延迟等坑
@@ -227,6 +229,7 @@ Slides 实际走 `api.wps.cn`（不是 `openapi.wps.cn`）。调用形状/文本
 | **下载要带 Bearer** | 存储 URL 直接请求会 `userNotLogin` |
 | **复杂表格用 HTML** | `TABLE_FULL` 的 `tcW=0`，部分渲染器会挤成一列 |
 | **XLSX 写不了** | `/v7/sheets`、`/v7/airsheet` 用当前 Agent Key 返回 401 |
+| **失败非零退出** | API 返回非零 `code`/`errno` 时抛 `WPSAPIError`，CLI exit 1；不做自动重试，由调用方决定 |
 
 更多细节见 [references/gotchas.md](references/gotchas.md)。
 
@@ -257,6 +260,7 @@ python3 /path/to/skill-creator/scripts/quick_validate.py .
 
 ```bash
 python3 -m compileall -q scripts
+python3 -m unittest discover -s tests -v
 python3 scripts/wps_api.py drives
 python3 scripts/wps_docs.py search 批注
 ```
