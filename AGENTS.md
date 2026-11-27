@@ -10,7 +10,7 @@
 - `docs/evaluation-2026-11-27.md` — live-test findings and limits.
 - `agents/openai.yaml` — skill UI metadata.
 
-No `src/`, automated tests, or CI yet.
+No `src/` or automated API tests. CI only compiles scripts and checks CLI help.
 
 ## Build, Test, and Development Commands
 
@@ -36,7 +36,7 @@ python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py .
 
 ## Testing Guidelines
 
-- No automated tests or CI; do not claim "tests pass" without live verification.
+- No automated API tests. CI runs `compileall` and CLI `--help` only; do not claim live tests pass without running them.
 - Smoke test: `python3 scripts/wps_api.py drives` and `python3 scripts/wps_docs.py search 批注`.
 - After DOCX writes, download and confirm `header1.xml`, `footer1.xml`, or `comments.xml`.
 - New tests: `unittest` under `tests/`, files `test_*.py`, mock HTTP so no key is needed.

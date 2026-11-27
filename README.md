@@ -45,7 +45,7 @@
 | 域 | 接口数 | 状态 |
 |---|---:|---|
 | Writer / DOCX | 98 | ✅ 读写已实测 |
-| Slides / PPTX | 52 | ✅ 读写已实测 |
+| Slides / PPTX | 52 | ✅ 核心读写已实测（文本/形状/表格/备注） |
 | Drive / File | 46 | ✅ 列盘、列目录、创建、下载已实测 |
 | Sheets / XLSX | 43 | ⚠️ 只能读；结构化写接口当前 401 |
 | DBSheet / 多维表格 | 40 | ⚠️ 需用户 OAuth token，未验证 |
@@ -99,7 +99,7 @@ python3 scripts/wps_api.py read https://www.kdocs.cn/l/<link_id>
 ### 3. 生成一份复杂 DOCX
 
 ```bash
-DRIVE_ID=<drive_id>
+DRIVE_ID=<your_drive_id>
 FILE_ID=$(python3 scripts/wps_api.py create "$DRIVE_ID" report.docx \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['id'])")
 
@@ -113,7 +113,7 @@ python3 scripts/wps_api.py download "$DRIVE_ID" "$FILE_ID" report.docx
 
 `assets/demo.html` 包含标题、段落、100% 宽表格、列表和颜色样式。写入后的 DOCX 会带 `header1.xml` / `footer1.xml` 等真实 Word 部件。
 
-实测样例：<https://www.kdocs.cn/l/<demo_link>>
+可用 `assets/demo.html` 复现；仓库不附带在线演示链接。
 
 ### 4. 查询官方 API 文档
 
@@ -182,7 +182,7 @@ python3 scripts/wps_api.py add-note <file_id> <slide_id> "演讲者备注"
 
 Slides 实际走 `api.wps.cn`（不是 `openapi.wps.cn`）。调用形状/文本接口时用 `slides` 输出里的 `slide_id`，不是 `slide_index`。
 
-实测样例：<https://www.kdocs.cn/l/<demo_link>>（2 页：文本框、3×3 表格、演讲者备注）
+本地已验证 2 页、文本框、3×3 表格和演讲者备注；仓库不附带在线演示链接。
 
 ---
 
@@ -190,9 +190,13 @@ Slides 实际走 `api.wps.cn`（不是 `openapi.wps.cn`）。调用形状/文本
 
 ```text
 .
+├── AGENTS.md
 ├── README.md
 ├── LICENSE
+├── SECURITY.md
 ├── SKILL.md
+├── .github/
+│   └── workflows/ci.yml    # 语法与 CLI 自检
 ├── agents/
 │   └── openai.yaml
 ├── scripts/
@@ -252,6 +256,7 @@ python3 /path/to/skill-creator/scripts/quick_validate.py .
 ### 快速自检
 
 ```bash
+python3 -m compileall -q scripts
 python3 scripts/wps_api.py drives
 python3 scripts/wps_docs.py search 批注
 ```
@@ -261,6 +266,8 @@ python3 scripts/wps_docs.py search 批注
 - 不要提交 `.env`、Key、导出的私人文档。
 - `WPS_AGENT_API_KEY` 只从环境变量读取。
 - 写操作会修改云端文档，批量脚本建议先在小号/测试盘验证。
+
+更多见 [SECURITY.md](SECURITY.md)。
 
 ---
 

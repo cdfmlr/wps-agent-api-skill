@@ -35,10 +35,7 @@
 GET /v7/drives?allotee_type=user&page_size=100
 ```
 
-返回当前用户 `当前账号` 的两个私有盘：
-
-- `<drive_id>` 我的云文档
-- `<drive_id>` 自动上传文档
+返回当前账号的两个私有盘：`我的云文档`、`自动上传文档`（具体 ID 省略）。
 
 ### 2.3 DOCX 端到端写读
 
@@ -57,10 +54,7 @@ GET /v7/drives?allotee_type=user&page_size=100
 | 查询全文 | `POST /v7/docs/{file}/documents/texts/query` | ✅ 可查正文、字数、页数 |
 | 下载 DOCX | `GET /v7/drives/{drive}/files/{file}/download` | ✅ 下载地址需带 Bearer |
 
-**在线产物**：<https://www.kdocs.cn/l/<demo_link>>
-（标题：`WPS-API-HTML-测试.docx`，正文由一段 HTML 写入，含页眉、页码、批注）
-
-本地可用 `python3 scripts/wps_api.py download ...` 重新拉取。
+**产物**：本地生成了 `WPS-API-HTML-测试.docx`（正文由一段 HTML 写入，含页眉、页码、批注）。仓库不附带在线链接，可用 `scripts/wps_api.py` 重新生成。
 
 ### 2.4 PPTX 读写
 
@@ -88,8 +82,7 @@ POST /v7/slides/{file_id}/slides/items/query
 | 演讲者备注 | `slides/notes/insert` / `query` | ✅ |
 | 下载校验 | `GET /v7/drives/.../download` | ✅ 2 页 + `notesSlide1.xml` |
 
-**在线产物**：<https://www.kdocs.cn/l/<demo_link>>
-（`WPS-API-PPT-测试.pptx`：2 页；标题页含 2 个文本框，第二页含 3×3 表格和文本框，第 1 页有演讲者备注）
+**产物**：本地生成了 `WPS-API-PPT-测试.pptx`（2 页；标题页含 2 个文本框，第二页含 3×3 表格和文本框，第 1 页有演讲者备注）。仓库不附带在线链接。
 
 注意两点：
 
@@ -290,4 +283,4 @@ python3 scripts/wps_api.py add-note <file_id> <slide_id> "备注"
 ## 8. 安全备注
 
 - 全程没有把 Key 写入任何文件，也没有回显完整 Key。
-- 测试产生的临时文档已清理；在线保留了一份演示文档 `WPS-API-HTML-测试.docx`（链接见上）。
+- 测试产生的临时文档已清理；仓库和公开页面均不保留演示文档链接或账号标识。
